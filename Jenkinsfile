@@ -45,12 +45,12 @@ pipeline {
         }
 
         stage('Import Results to Xray') {
-            steps {
-                bat '''
-                powershell -Command "$token = Get-Content xray_token.txt; $token = $token.Trim('\\"'); Get-ChildItem 'target/surefire-reports/*.xml' | ForEach-Object { Invoke-RestMethod -Method Post -Uri 'https://xray.cloud.getxray.app/api/v2/import/execution/junit?projectKey=%PROJECT_KEY%' -Headers @{Authorization = 'Bearer ' + $token} -ContentType 'text/xml' -InFile $_.FullName }"
-                '''
-            }
-        }
+    steps {
+        bat '''
+        powershell -Command "$token = (Get-Content xray_token.txt -Raw).Trim('\\"'); $files = Get-ChildItem 'target/surefire-reports/*.xml'; foreach ($file in $files) { Invoke-RestMethod -Method Post -Uri 'https://xray.cloud.getxray.app/api/v2/import/execution/junit?projectKey=LOGI' -Headers @{ Authorization = 'Bearer ' + $token } -ContentType 'text/xml' -InFile $file.FullName }"
+        '''
+    }
+}
     }
 
     post {
