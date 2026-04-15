@@ -4,6 +4,7 @@ pipeline {
     environment {
         XRAY_BASE_URL = 'https://xray.cloud.getxray.app'
         PROJECT_KEY   = 'LOGI'
+        PYTHON_EXE    = 'C:\\Users\\ADMIN\\AppData\\Local\\Python\\bin\\python.exe'
     }
 
     stages {
@@ -46,7 +47,7 @@ pipeline {
 
    stage('Convert JUnit to Xray JSON') {
     steps {
-        bat 'python junit_to_xray_json.py'
+         bat '"%PYTHON_EXE%" junit_to_xray_json.py'
     }
 }
     }
