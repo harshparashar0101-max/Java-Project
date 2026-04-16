@@ -48,6 +48,7 @@ pipeline {
         stage('Convert JUnit to Xray JSON') {
             steps {
                 bat '"%PYTHON_EXE%" junit_to_xray_json.py'
+                bat 'dir reports'
             }
         }
 
