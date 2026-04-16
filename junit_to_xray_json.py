@@ -1,57 +1,86 @@
-import xml.etree.ElementTree as ET
+import glob
 import json
 import os
-from datetime import datetime
+import xml.etree.ElementTree as ET
+from datetime import datetime, timezone
 
-JUNIT_FILE = "target/surefire-reports/TEST-com.test.LoginTest.xml"
 MAPPING_FILE = "xray_mapping.json"
 OUTPUT_FILE = "reports/xray_results.json"
+TEST_EXECUTION_KEY = "LOGI-70"
 
-os.makedirs("reports", exist_ok=True)
 
-tree = ET.parse(JUNIT_FILE)
-root = tree.getroot()
+def find_junit_file() -> str:
+    files = glob.glob("target/surefire-reports/TEST-*.xml")
+    if not files:
+        raise FileNotFoundError("No JUnit XML file found in target/surefire-reports/")
+    print(f"Using JUnit file: {files[0]}")
+    return files[0]
 
-with open(MAPPING_FILE, "r", encoding="utf-8") as f:
-    mapping = json.load(f)
 
-tests = []
+def load_mapping() -> dict:
+    with open(MAPPING_FILE, "r", encoding="utf-8") as f:
+        return json.load(f)
 
-for testcase in root.findall(".//testcase"):
-    classname = testcase.get("classname")
-    name = testcase.get("name")
 
-    key = f"{classname}#{name}"
+def get_status(testcase) -> str:
+    if testcase.find("failure") is not None:
+        return "FAILED"
+    if testcase.find("error") is not None:
+        return "FAILED"
+    if testcase.find("skipped") is not None:
+        return "TODO"
+    return "PASSED"
 
-    if key not in mapping:
-        print(f"Skipping unmapped test: {key}")
-        continue
 
-    status = "PASSED"
-    if testcase.find("failure") is not None or testcase.find("error") is not None:
-        status = "FAILED"
-    elif testcase.find("skipped") is not None:
-        status = "TODO"
+def main():
+    junit_file = find_junit_file()
+    mapping = load_mapping()
 
-    tests.append({
-        "testKey": mapping[key],
-        "status": status
-    })
+    os.makedirs("reports", exist_ok=True)
 
-now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+    tree = ET.parse(junit_file)
+    root = tree.getroot()
 
-result = {
-    "testExecutionKey": "LOGI-70",
-    "info": {
-        "summary": "Java Jenkins Execution",
-        "description": "Execution from Jenkins Java pipeline",
-        "startDate": now,
-        "finishDate": now
-    },
-    "tests": tests
-}
+    tests = []
 
-with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
-    json.dump(result, f, indent=4)
+    for testcase in root.findall(".//testcase"):
+        classname = testcase.get("classname", "").strip()
+        name = testcase.get("name", "").strip()
 
-print(f"Xray JSON created at {OUTPUT_FILE}")
+        mapping_key = f"{classname}#{name}"
+
+        if mapping_key not in mapping:
+            print(f"Skipping unmapped test: {mapping_key}")
+            continue
+
+        status = get_status(testcase)
+
+        tests.append({
+            "testKey": mapping[mapping_key],
+            "status": status
+        })
+
+    if not tests:
+        raise ValueError("No mapped tests found. Please check xray_mapping.json and JUnit classname/method names.")
+
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    result = {
+        "testExecutionKey": TEST_EXECUTION_KEY,
+        "info": {
+            "summary": "Java Jenkins Execution",
+            "description": "Execution from Jenkins Java pipeline",
+            "startDate": now,
+            "finishDate": now
+        },
+        "tests": tests
+    }
+
+    with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
+        json.dump(result, f, indent=4)
+
+    print(f"Xray JSON created at: {OUTPUT_FILE}")
+
+
+if __name__ == "__main__":
+    main()
