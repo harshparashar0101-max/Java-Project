@@ -45,16 +45,24 @@ pipeline {
             }
         }
 
-   stage('Convert JUnit to Xray JSON') {
-    steps {
-         bat '"%PYTHON_EXE%" junit_to_xray_json.py'
-    }
-}
+        stage('Convert JUnit to Xray JSON') {
+            steps {
+                bat '"%PYTHON_EXE%" junit_to_xray_json.py'
+            }
+        }
+
+        stage('Import Results to Xray (Mapped)') {
+            steps {
+                bat '''
+                powershell -Command "$token = (Get-Content xray_token.txt -Raw).Trim('\\"'); Invoke-RestMethod -Method Post -Uri 'https://xray.cloud.getxray.app/api/v2/import/execution' -Headers @{ Authorization = 'Bearer ' + $token } -ContentType 'application/json' -InFile 'reports/xray_results.json'"
+                '''
+            }
+        }
     }
 
     post {
         always {
-            archiveArtifacts artifacts: 'target/surefire-reports/*.xml', fingerprint: true
+            archiveArtifacts artifacts: 'target/surefire-reports/*.xml, reports/xray_results.json', fingerprint: true
         }
     }
 }
