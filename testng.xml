@@ -3,6 +3,7 @@
     <test name="Demo Test">
         <classes>
             <class name="com.test.LoginTest"/>
+            <class name="com.test.WebcastLoginTest"/>
         </classes>
     </test>
 </suite>
